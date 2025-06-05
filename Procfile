@@ -1,1 +1,1 @@
-web: gunicorn pachinko_app.pachinko_app.app.main:app
+web: cd pachinko_app && gunicorn app.main:app
