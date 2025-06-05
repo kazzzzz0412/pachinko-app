@@ -1,1 +1,1 @@
-web: gunicorn app.main:app
+web: gunicorn pachinko_app.pachinko_app.app.main:app
