@@ -1,0 +1,378 @@
+{% extends 'base.html' %}
+
+{% block title %}履歴・統計 - パチンコ羽根モノ期待値計算{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <!-- 月間カレンダー -->
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas fa-calendar-alt me-2"></i>月間収支カレンダー
+                </div>
+                <div>
+                    <a href="{{ url_for('history', year=prev_month.year, month=prev_month.month) }}" class="btn btn-sm btn-outline-secondary me-2">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                    <span class="fw-bold">{{ year }}年{{ month }}月</span>
+                    <a href="{{ url_for('history', year=next_month.year, month=next_month.month) }}" class="btn btn-sm btn-outline-secondary ms-2">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="card-body p-2">
+                <div class="row text-center calendar-day-header">
+                    <div class="col">日</div>
+                    <div class="col">月</div>
+                    <div class="col">火</div>
+                    <div class="col">水</div>
+                    <div class="col">木</div>
+                    <div class="col">金</div>
+                    <div class="col">土</div>
+                </div>
+                
+                {% for week in calendar_data %}
+                <div class="row">
+                    {% for day in week %}
+                        <div class="col calendar-day {% if day.current_month == false %}bg-light text-muted{% endif %}">
+                            {% if day.day %}
+                                <div class="d-flex justify-content-between">
+                                    <span>{{ day.day }}</span>
+                                    {% if day.has_records %}
+                                        <a href="#" data-bs-toggle="modal" data-bs-target="#dayModal" data-date="{{ day.date }}">
+                                            <i class="fas fa-info-circle text-primary"></i>
+                                        </a>
+                                    {% endif %}
+                                </div>
+                                {% if day.profit != 0 %}
+                                    <div class="calendar-profit {% if day.profit > 0 %}positive-value{% else %}negative-value{% endif %}">
+                                        {{ day.profit|format_yen }}
+                                    </div>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- 月間サマリー -->
+    <div class="col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-chart-pie me-2"></i>月間サマリー
+            </div>
+            <div class="card-body">
+                <div class="row text-center mb-4">
+                    <div class="col-6">
+                        <p class="text-muted mb-1">総投資額</p>
+                        <h3 class="mb-0">{{ monthly_stats.total_investment|default(0)|format_yen }}</h3>
+                    </div>
+                    <div class="col-6">
+                        <p class="text-muted mb-1">総収支</p>
+                        <h3 class="mb-0 {% if monthly_stats.total_profit > 0 %}positive-value{% elif monthly_stats.total_profit < 0 %}negative-value{% endif %}">
+                            {{ monthly_stats.total_profit|default(0)|format_yen }}
+                        </h3>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <p class="text-muted mb-2">平均鳴き→拾い率</p>
+                    <div class="progress mb-2" style="height: 20px;">
+                        <div class="progress-bar" role="progressbar" style="width: {{ monthly_stats.avg_naki_to_hiroi_rate * 100 }}%;" 
+                             aria-valuenow="{{ monthly_stats.avg_naki_to_hiroi_rate * 100 }}" aria-valuemin="0" aria-valuemax="100">
+                            {{ (monthly_stats.avg_naki_to_hiroi_rate * 100)|round(1) }}%
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="machine-distribution-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 機種別成績 -->
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="fas fa-trophy me-2"></i>機種別累積成績
+    </div>
+    <div class="card-body">
+        {% if machine_stats %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>機種</th>
+                            <th>プレイ回数</th>
+                            <th>総投資額</th>
+                            <th>平均鳴き→拾い率</th>
+                            <th>総収支</th>
+                            <th>詳細</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in machine_stats %}
+                            <tr>
+                                <td>{{ stat.machine_type.name }}</td>
+                                <td>{{ stat.play_count }}</td>
+                                <td>{{ stat.total_investment|format_yen }}</td>
+                                <td>{{ (stat.avg_naki_to_hiroi_rate * 100)|round(2) }}%</td>
+                                <td class="{% if stat.total_profit > 0 %}positive-value{% elif stat.total_profit < 0 %}negative-value{% endif %}">
+                                    {{ stat.total_profit|format_yen }}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('machine_detail', machine_id=stat.machine_type.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-search"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-4">
+                <p class="text-muted">まだデータがありません</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 全記録一覧 -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <i class="fas fa-list me-2"></i>全記録一覧
+        </div>
+        <div>
+            <form class="d-flex" method="GET" action="{{ url_for('history') }}">
+                <input class="form-control form-control-sm me-2" type="search" placeholder="検索..." name="search" value="{{ request.args.get('search', '') }}">
+                <button class="btn btn-sm btn-outline-primary" type="submit">
+                    <i class="fas fa-search"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if records %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>日付</th>
+                            <th>機種</th>
+                            <th>投資</th>
+                            <th>鳴き数</th>
+                            <th>拾い数</th>
+                            <th>鳴き→拾い率</th>
+                            <th>収支</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in records %}
+                            <tr>
+                                <td>{{ record.date.strftime('%Y/%m/%d') }}</td>
+                                <td>{{ record.machine_type.name }}</td>
+                                <td>{{ record.investment|format_yen }}</td>
+                                <td>{{ record.naki_count }}</td>
+                                <td>{{ record.hiroi_count }}</td>
+                                <td>{{ (record.naki_to_hiroi_rate * 100)|round(2) }}%</td>
+                                <td class="{% if record.amount_difference > 0 %}positive-value{% elif record.amount_difference < 0 %}negative-value{% endif %}">
+                                    {{ record.amount_difference|format_yen }}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('record_detail', record_id=record.id) }}" class="btn btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('edit_record', record_id=record.id) }}" class="btn btn-outline-secondary">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal" data-record-id="{{ record.id }}">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- ページネーション -->
+            {% if pagination.pages > 1 %}
+                <div class="d-flex justify-content-center py-3">
+                    <nav>
+                        <ul class="pagination">
+                            <li class="page-item {% if pagination.page == 1 %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('history', page=pagination.page-1, **request.args) }}">前へ</a>
+                            </li>
+                            
+                            {% for p in pagination.iter_pages() %}
+                                {% if p %}
+                                    <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                                        <a class="page-link" href="{{ url_for('history', page=p, **request.args) }}">{{ p }}</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            <li class="page-item {% if pagination.page == pagination.pages %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('history', page=pagination.page+1, **request.args) }}">次へ</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-5">
+                <p class="text-muted mb-3">まだ記録がありません</p>
+                <a href="{{ url_for('input') }}" class="btn btn-primary">
+                    <i class="fas fa-plus-circle me-2"></i>新しく記録する
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 日別詳細モーダル -->
+<div class="modal fade" id="dayModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><span id="modal-date"></span>の記録</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="day-records">
+                <!-- Ajaxで取得したデータがここに表示される -->
+                <div class="text-center py-3">
+                    <div class="loading-spinner"></div>
+                    <p class="mt-2">読み込み中...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 削除確認モーダル -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">記録の削除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>この記録を削除してもよろしいですか？</p>
+                <p class="text-danger">この操作は取り消せません。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <form id="delete-form" method="POST" action="">
+                    <input type="hidden" name="_method" value="DELETE">
+                    <button type="submit" class="btn btn-danger">削除する</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 機種分布グラフ
+        const distributionChartCanvas = document.getElementById('machine-distribution-chart');
+        if (distributionChartCanvas) {
+            const ctx = distributionChartCanvas.getContext('2d');
+            
+            // サンプルデータ（実際にはサーバーから提供されるデータを使用）
+            const labels = {{ machine_distribution.labels|tojson }};
+            const data = {{ machine_distribution.data|tojson }};
+            const colors = [
+                'rgba(74, 144, 226, 0.7)',
+                'rgba(126, 211, 33, 0.7)',
+                'rgba(245, 166, 35, 0.7)',
+                'rgba(208, 2, 27, 0.7)',
+                'rgba(155, 89, 182, 0.7)'
+            ];
+            
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 日別詳細モーダル
+        const dayModal = document.getElementById('dayModal');
+        if (dayModal) {
+            dayModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const date = button.getAttribute('data-date');
+                const modalTitle = dayModal.querySelector('#modal-date');
+                const dayRecords = dayModal.querySelector('#day-records');
+                
+                modalTitle.textContent = date;
+                
+                // Ajaxでデータを取得（実際の実装ではサーバーからデータを取得）
+                // この例では簡略化のため、モックデータを表示
+                setTimeout(() => {
+                    dayRecords.innerHTML = `
+                        <div class="list-group">
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h5 class="mb-1">おだてブタ2</h5>
+                                    <small class="text-success">+3,000円</small>
+                                </div>
+                                <p class="mb-1">投資: 10,000円 / 鳴き: 100 / 拾い: 30</p>
+                                <small>鳴き→拾い率: 30%</small>
+                            </div>
+                        </div>
+                    `;
+                }, 500);
+            });
+        }
+        
+        // 削除確認モーダル
+        const deleteModal = document.getElementById('deleteModal');
+        if (deleteModal) {
+            deleteModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const recordId = button.getAttribute('data-record-id');
+                const deleteForm = deleteModal.querySelector('#delete-form');
+                
+                deleteForm.action = `/record/${recordId}/delete`;
+            });
+        }
+    });
+</script>
+{% endblock %}

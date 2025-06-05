@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+
+{% block title %}ホーム - パチンコ羽根モノ期待値計算{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- メインアクションボタン -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title mb-4"><i class="fas fa-dice me-2"></i>新規データ入力</h5>
+                <a href="{{ url_for('input') }}" class="btn btn-primary btn-action">
+                    <i class="fas fa-plus-circle me-2"></i>新しく打った台を記録する
+                </a>
+                <a href="{{ url_for('history') }}" class="btn btn-outline-primary btn-action">
+                    <i class="fas fa-history me-2"></i>過去の記録を見る
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 月間収支サマリー -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-chart-line me-2"></i>今月の収支
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <p class="text-muted mb-1">総投資額</p>
+                        <h3 class="mb-3">{{ monthly_stats.total_investment|default(0)|format_yen }}</h3>
+                    </div>
+                    <div class="col-6">
+                        <p class="text-muted mb-1">総収支</p>
+                        <h3 class="mb-3 {% if monthly_stats.total_profit > 0 %}positive-value{% elif monthly_stats.total_profit < 0 %}negative-value{% endif %}">
+                            {{ monthly_stats.total_profit|default(0)|format_yen }}
+                        </h3>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="monthly-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 最近の記録 -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <i class="fas fa-clock me-2"></i>最近の記録
+        </div>
+        <a href="{{ url_for('history') }}" class="btn btn-sm btn-outline-primary">すべて見る</a>
+    </div>
+    <div class="card-body p-0">
+        {% if recent_records %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>日付</th>
+                            <th>機種</th>
+                            <th>投資</th>
+                            <th>鳴き数</th>
+                            <th>拾い数</th>
+                            <th>収支</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in recent_records %}
+                            <tr>
+                                <td>{{ record.date.strftime('%m/%d') }}</td>
+                                <td>{{ record.machine_type.name }}</td>
+                                <td>{{ record.investment|format_yen }}</td>
+                                <td>{{ record.naki_count }}</td>
+                                <td>{{ record.hiroi_count }}</td>
+                                <td class="{% if record.amount_difference > 0 %}positive-value{% elif record.amount_difference < 0 %}negative-value{% endif %}">
+                                    {{ record.amount_difference|format_yen }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <p class="text-muted mb-3">まだ記録がありません</p>
+                <a href="{{ url_for('input') }}" class="btn btn-primary">
+                    <i class="fas fa-plus-circle me-2"></i>新しく記録する
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 機種別成績 -->
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-trophy me-2"></i>機種別成績
+    </div>
+    <div class="card-body">
+        {% if machine_stats %}
+            <div class="row">
+                {% for stat in machine_stats %}
+                    <div class="col-md-6 col-lg-3 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">{{ stat.machine_type.name }}</h5>
+                                <p class="text-muted mb-2">平均鳴き→拾い率</p>
+                                <h4 class="mb-3">{{ (stat.avg_naki_to_hiroi_rate * 100)|round(2) }}%</h4>
+                                <p class="text-muted mb-2">収支</p>
+                                <h4 class="{% if stat.total_profit > 0 %}positive-value{% elif stat.total_profit < 0 %}negative-value{% endif %}">
+                                    {{ stat.total_profit|format_yen }}
+                                </h4>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-4">
+                <p class="text-muted">まだデータがありません</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 月間収支グラフ
+        const monthlyChartCanvas = document.getElementById('monthly-chart');
+        if (monthlyChartCanvas) {
+            const ctx = monthlyChartCanvas.getContext('2d');
+            
+            // サンプルデータ（実際にはサーバーから提供されるデータを使用）
+            const labels = {{ monthly_chart_data.labels|tojson }};
+            const profits = {{ monthly_chart_data.profits|tojson }};
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '日別収支',
+                        data: profits,
+                        backgroundColor: 'rgba(74, 144, 226, 0.2)',
+                        borderColor: 'rgba(74, 144, 226, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(74, 144, 226, 1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+
+{% block title %}データ入力 - パチンコ羽根モノ期待値計算{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-edit me-2"></i>データ入力
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('input') }}" enctype="multipart/form-data" id="calculation-form" data-auto-calculate="true">
+            {{ form.csrf_token }}
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="date" class="form-label">日付</label>
+                        {{ form.date(class="form-control", id="date") }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="machine_type_id" class="form-label">機種</label>
+                        <select class="form-select" id="machine_type_id" name="machine_type_id" required>
+                            <option value="" selected disabled>選択してください</option>
+                            {% for machine in machines %}
+                                <option value="{{ machine.id }}" data-payout="{{ machine.average_payout }}">
+                                    {{ machine.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="investment" class="form-label">投資額（円）</label>
+                        {{ form.investment(class="form-control", id="investment", placeholder="例: 10000") }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="naki_count" class="form-label">鳴き数</label>
+                        {{ form.naki_count(class="form-control", id="naki_count", placeholder="例: 100") }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="hiroi_count" class="form-label">拾い数</label>
+                        {{ form.hiroi_count(class="form-control", id="hiroi_count", placeholder="例: 30") }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="probability_id" class="form-label">役物確率</label>
+                        <select class="form-select" id="probability_id" name="probability_id" required>
+                            <option value="" selected disabled>選択してください</option>
+                            {% for prob in probabilities %}
+                                <option value="{{ prob.id }}" data-value="{{ prob.probability_value }}">
+                                    {{ prob.probability }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="exchange_rate_id" class="form-label">換金率</label>
+                        <select class="form-select" id="exchange_rate_id" name="exchange_rate_id" required>
+                            <option value="" selected disabled>選択してください</option>
+                            {% for rate in exchange_rates %}
+                                <option value="{{ rate.id }}" data-rate="{{ rate.rate }}">
+                                    {{ rate.rate }}円
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label for="memo" class="form-label">メモ（オプション）</label>
+                {{ form.memo(class="form-control", id="memo", rows="3", placeholder="クセや特徴などをメモ") }}
+            </div>
+            
+            <div class="mb-4">
+                <label for="photo" class="form-label">実機写真（オプション）</label>
+                {{ form.photo(class="form-control", id="photo") }}
+                <div class="mt-2">
+                    <img id="photo-preview" src="#" alt="写真プレビュー" style="max-width: 100%; display: none;">
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <i class="fas fa-calculator me-2"></i>計算結果
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6 col-md-4 mb-3">
+                            <p class="text-muted mb-1">鳴き→拾い率</p>
+                            <div class="result-value" id="naki-to-hiroi-rate">-</div>
+                        </div>
+                        <div class="col-6 col-md-4 mb-3">
+                            <p class="text-muted mb-1">期待大当たり数</p>
+                            <div class="result-value" id="expected-wins">-</div>
+                        </div>
+                        <div class="col-6 col-md-4 mb-3">
+                            <p class="text-muted mb-1">予想出玉</p>
+                            <div class="result-value" id="expected-payout">-</div>
+                        </div>
+                        <div class="col-6 col-md-4 mb-3">
+                            <p class="text-muted mb-1">差玉</p>
+                            <div class="result-value" id="payout-difference">-</div>
+                        </div>
+                        <div class="col-6 col-md-4 mb-3">
+                            <p class="text-muted mb-1">差額</p>
+                            <div class="result-value" id="amount-difference">-</div>
+                        </div>
+                        <div class="col-6 col-md-4 mb-3">
+                            <p class="text-muted mb-1">ボーダー率</p>
+                            <div class="result-value" id="border-rate">-</div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                        <button type="button" id="calculate-button" class="btn btn-secondary">
+                            <i class="fas fa-calculator me-2"></i>再計算
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <a href="{{ url_for('index') }}" class="btn btn-outline-secondary me-md-2">
+                    <i class="fas fa-times me-2"></i>キャンセル
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>保存する
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 機種選択時の処理
+        const machineSelect = document.getElementById('machine_type_id');
+        const probabilitySelect = document.getElementById('probability_id');
+        
+        if (machineSelect && probabilitySelect) {
+            machineSelect.addEventListener('change', function() {
+                const machineId = this.value;
+                
+                // 機種に対応する確率のみを表示（実際の実装ではAjaxで取得するか、初期データを使用）
+                // この例では簡略化のため、すべての確率を表示
+                probabilitySelect.disabled = false;
+            });
+        }
+        
+        // 日付フィールドの初期値を今日に設定
+        const dateField = document.getElementById('date');
+        if (dateField && !dateField.value) {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            dateField.value = `${year}-${month}-${day}`;
+        }
+    });
+</script>
+{% endblock %}

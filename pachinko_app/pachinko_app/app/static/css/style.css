@@ -1,0 +1,150 @@
+/* 全体のスタイル */
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background-color: #f8f9fa;
+    font-family: 'Hiragino Kaku Gothic Pro', 'Meiryo', sans-serif;
+}
+
+main {
+    flex: 1;
+}
+
+/* ヘッダースタイル */
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.3rem;
+}
+
+/* カード共通スタイル */
+.card {
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.card-header {
+    font-weight: bold;
+    background-color: #f1f8ff;
+}
+
+/* ボタンスタイル */
+.btn-primary {
+    background-color: #4A90E2;
+    border-color: #4A90E2;
+}
+
+.btn-primary:hover {
+    background-color: #3A7BC8;
+    border-color: #3A7BC8;
+}
+
+.btn-action {
+    width: 100%;
+    padding: 15px;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+    border-radius: 8px;
+}
+
+/* フォームスタイル */
+.form-label {
+    font-weight: 600;
+    margin-bottom: 0.3rem;
+}
+
+.form-control, .form-select {
+    border-radius: 8px;
+    padding: 10px 15px;
+}
+
+/* 結果表示スタイル */
+.result-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #4A90E2;
+}
+
+.positive-value {
+    color: #28a745;
+}
+
+.negative-value {
+    color: #dc3545;
+}
+
+/* カレンダースタイル */
+.calendar-day {
+    height: 80px;
+    border: 1px solid #dee2e6;
+    padding: 5px;
+}
+
+.calendar-day-header {
+    font-weight: bold;
+    text-align: center;
+}
+
+.calendar-profit {
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+/* グラフコンテナ */
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin-bottom: 20px;
+}
+
+/* スマホ最適化 */
+@media (max-width: 768px) {
+    .btn-action {
+        padding: 12px;
+    }
+    
+    .result-value {
+        font-size: 1.3rem;
+    }
+    
+    .calendar-day {
+        height: 60px;
+        font-size: 0.8rem;
+    }
+}
+
+/* PWA対応 */
+@media (display-mode: standalone) {
+    /* スタンドアロンモード（ホーム画面から起動）時のスタイル */
+    body {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+}
+
+/* アニメーション */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* ローディングインジケータ */
+.loading-spinner {
+    display: inline-block;
+    width: 2rem;
+    height: 2rem;
+    border: 0.25rem solid rgba(0, 0, 0, 0.1);
+    border-right-color: #4A90E2;
+    border-radius: 50%;
+    animation: spinner 1s linear infinite;
+}
+
+@keyframes spinner {
+    to { transform: rotate(360deg); }
+}
