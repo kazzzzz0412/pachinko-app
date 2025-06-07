@@ -1,1 +1,1 @@
-web: PYTHONPATH=pachinko_app gunicorn app.main:app
+web: cd pachinko_app && python -m app.main
